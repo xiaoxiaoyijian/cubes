@@ -1,7 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-from __future__ import absolute_import
-
 from flask import Request, Response, request, g
 
 import codecs
@@ -10,7 +8,6 @@ import csv
 
 from .errors import *
 from ..formatters import csv_generator, JSONLinesGenerator, SlicerJSONEncoder
-from .. import compat
 
 
 def str_to_bool(string):

@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function
-
 import json
 import csv
 import codecs
 import decimal
 import datetime
+from io import StringIO
 
 from collections import namedtuple
 
@@ -17,7 +16,6 @@ except ImportError:
     jinja2 = MissingPackage("jinja2", "Templating engine")
 
 from .errors import ArgumentError
-from . import compat
 from . import ext
 
 from .query import SPLIT_DIMENSION_NAME
@@ -45,43 +43,7 @@ def _jinja_env():
     return env
 
 
-def csv_generator_p2(records, fields, include_header=True, header=None,
-                     dialect=csv.excel):
-
-    def _row_string(row):
-        writer.writerow(row)
-        # Fetch UTF-8 output from the queue ...
-        data = queue.getvalue()
-        data = compat.to_unicode(data)
-        # ... and reencode it into the target encoding
-        data = encoder.encode(data)
-        # empty queue
-        queue.truncate(0)
-
-        return data
-
-    queue = compat.StringIO()
-    writer = csv.writer(queue, dialect=dialect)
-    encoder = codecs.getincrementalencoder("utf-8")()
-
-    if include_header:
-        yield _row_string(header or fields)
-
-    for record in records:
-        row = []
-        for field in fields:
-            value = record.get(field)
-            if isinstance(value, compat.string_type):
-                row.append(value.encode("utf-8"))
-            elif value is not None:
-                row.append(compat.text_type(value))
-            else:
-                row.append(None)
-
-        yield _row_string(row)
-
-
-def csv_generator_p3(records, fields, include_header=True, header=None,
+def csv_generator(records, fields, include_header=True, header=None,
                      dialect=csv.excel):
 
     def _row_string(row):
@@ -91,7 +53,7 @@ def csv_generator_p3(records, fields, include_header=True, header=None,
 
         return data
 
-    queue = compat.StringIO()
+    queue = StringIO()
     writer = csv.writer(queue, dialect=dialect)
 
     if include_header:
@@ -101,12 +63,6 @@ def csv_generator_p3(records, fields, include_header=True, header=None,
         row = [record.get(field) for field in fields]
 
         yield _row_string(row)
-
-
-if compat.py3k:
-    csv_generator = csv_generator_p3
-else:
-    csv_generator = csv_generator_p2
 
 
 class JSONLinesGenerator(object):
@@ -365,6 +321,7 @@ class HTMLCrossTableFormatter(CrossTableFormatter):
                                       table_style=self.table_style)
         return output
 
+
 class CSVFormatter(Formatter):
     def format(self, cube, result, onrows=None, oncolumns=None, aggregates=None,
                aggregates_on=None):
@@ -386,8 +343,8 @@ class CSVFormatter(Formatter):
                                   fields,
                                   include_header=bool(header),
                                   header=header)
-        # TODO: this is Py3 hack over Py2 hack
-        rows = [compat.to_str(row) for row in generator]
+
+        rows = [row.decode("utf-8") for row in generator]
         output = "".join(rows)
         return output
 
